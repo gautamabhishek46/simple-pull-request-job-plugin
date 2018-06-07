@@ -60,50 +60,51 @@ public class PipelineSnippetGenerator {
 
     //TODO: Change to support full specs
     public String getAgent(Agent agent){
-        String snippet = "";
-
-        if(agent == null){
-            snippet = "any\n";
-        }
-        else {
-            if(agent.getDockerImage() != null){
-                snippet += "{\n";
-                snippet += "\tdocker {\n";
-                snippet += "\t\timage '" + agent.getDockerImage() + "'\n";
-
-                if (agent.getArgs() != null)
-                    snippet += "\t\targs '" + agent.getArgs() + "'\n";
-
-                snippet += "\t\talwaysPull " + agent.getAlwaysPull() + "\n";
-                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
-                snippet += "\t}\n";
-                snippet += "}\n";
-            }
-            else if(agent.getDockerfile() != null){
-                snippet += "{\n";
-                snippet += "\tdockerfile {\n";
-                snippet += "\t\tfilename '" + agent.getDockerfile() + "'\n";
-
-                if (agent.getDir() != null)
-                    snippet += "\t\tdir '" + agent.getDir() + "'\n";
-
-                if (agent.getArgs() != null)
-                    snippet += "\t\tadditionalBuildArgs '" + agent.getArgs() + "'\n";
-
-                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
-                snippet += "\t}\n";
-                snippet += "}\n";
-            }
-            else {
-                snippet += "{\n";
-                snippet += "\tnode{\n";
-                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
-                snippet += "\t}\n";
-                snippet += "}\n";
-            }
-        }
-
-        return snippet;
+        return "any\n";
+//        String snippet = "";
+//
+//        if(agent == null){
+//            snippet = "any\n";
+//        }
+//        else {
+//            if(agent.getDockerImage() != null){
+//                snippet += "{\n";
+//                snippet += "\tdocker {\n";
+//                snippet += "\t\timage '" + agent.getDockerImage() + "'\n";
+//
+//                if (agent.getArgs() != null)
+//                    snippet += "\t\targs '" + agent.getArgs() + "'\n";
+//
+//                snippet += "\t\talwaysPull " + agent.getAlwaysPull() + "\n";
+//                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
+//                snippet += "\t}\n";
+//                snippet += "}\n";
+//            }
+//            else if(agent.getDockerfile() != null){
+//                snippet += "{\n";
+//                snippet += "\tdockerfile {\n";
+//                snippet += "\t\tfilename '" + agent.getDockerfile() + "'\n";
+//
+//                if (agent.getDir() != null)
+//                    snippet += "\t\tdir '" + agent.getDir() + "'\n";
+//
+//                if (agent.getArgs() != null)
+//                    snippet += "\t\tadditionalBuildArgs '" + agent.getArgs() + "'\n";
+//
+//                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
+//                snippet += "\t}\n";
+//                snippet += "}\n";
+//            }
+//            else {
+//                snippet += "{\n";
+//                snippet += "\tnode{\n";
+//                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
+//                snippet += "\t}\n";
+//                snippet += "}\n";
+//            }
+//        }
+//
+//        return snippet;
     }
 
     public String getArchiveArtifactsSnippet(ArrayList<String> paths){
