@@ -12,7 +12,7 @@ public class PipelineSnippetGenerator {
     PipelineSnippetGenerator(){
     }
 
-    public String shellScritp(ArrayList<String> paths){
+    public String shellScript(ArrayList<String> paths){
         StringBuilder snippet;
         snippet = new StringBuilder("script {\n" + "\tif (isUnix()) {\n");
 
@@ -35,7 +35,8 @@ public class PipelineSnippetGenerator {
         String tabs = StringUtils.repeat("\t", numberOfTabs);
 
         script = script.replace("\n", "\n" + tabs);
-        script = script.substring(0, script.length() - numberOfTabs);
+        if(script.length() > numberOfTabs)
+            script = script.substring(0, script.length() - numberOfTabs);
         return script;
     }
 
@@ -58,53 +59,53 @@ public class PipelineSnippetGenerator {
         return snippet;
     }
 
-    //TODO: Change to support full specs
     public String getAgent(Agent agent){
-        return "any\n";
-//        String snippet = "";
-//
-//        if(agent == null){
-//            snippet = "any\n";
-//        }
-//        else {
-//            if(agent.getDockerImage() != null){
-//                snippet += "{\n";
-//                snippet += "\tdocker {\n";
-//                snippet += "\t\timage '" + agent.getDockerImage() + "'\n";
-//
-//                if (agent.getArgs() != null)
-//                    snippet += "\t\targs '" + agent.getArgs() + "'\n";
-//
-//                snippet += "\t\talwaysPull " + agent.getAlwaysPull() + "\n";
-//                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
-//                snippet += "\t}\n";
-//                snippet += "}\n";
-//            }
-//            else if(agent.getDockerfile() != null){
-//                snippet += "{\n";
-//                snippet += "\tdockerfile {\n";
-//                snippet += "\t\tfilename '" + agent.getDockerfile() + "'\n";
-//
-//                if (agent.getDir() != null)
-//                    snippet += "\t\tdir '" + agent.getDir() + "'\n";
-//
-//                if (agent.getArgs() != null)
-//                    snippet += "\t\tadditionalBuildArgs '" + agent.getArgs() + "'\n";
-//
-//                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
-//                snippet += "\t}\n";
-//                snippet += "}\n";
-//            }
-//            else {
-//                snippet += "{\n";
-//                snippet += "\tnode{\n";
-//                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
-//                snippet += "\t}\n";
-//                snippet += "}\n";
-//            }
-//        }
-//
-//        return snippet;
+        String snippet = "";
+
+        if(agent == null){
+            snippet = "any\n";
+        }
+        else if(agent.getAnyOrNone() != null)
+            snippet = agent.getAnyOrNone() + "\n";
+        else {
+            if(agent.getDockerImage() != null){
+                snippet += "{\n";
+                snippet += "\tdocker {\n";
+                snippet += "\t\timage '" + agent.getDockerImage() + "'\n";
+
+                if (agent.getArgs() != null)
+                    snippet += "\t\targs '" + agent.getArgs() + "'\n";
+
+                snippet += "\t\talwaysPull " + agent.getAlwaysPull() + "\n";
+                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
+                snippet += "\t}\n";
+                snippet += "}\n";
+            }
+            else if(agent.getDockerfile() != null){
+                snippet += "{\n";
+                snippet += "\tdockerfile {\n";
+                snippet += "\t\tfilename '" + agent.getDockerfile() + "'\n";
+
+                if (agent.getDir() != null)
+                    snippet += "\t\tdir '" + agent.getDir() + "'\n";
+
+                if (agent.getArgs() != null)
+                    snippet += "\t\tadditionalBuildArgs '" + agent.getArgs() + "'\n";
+
+                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
+                snippet += "\t}\n";
+                snippet += "}\n";
+            }
+            else {
+                snippet += "{\n";
+                snippet += "\tnode{\n";
+                snippet += "\t\t" + addTabs(getCommonOptionsOfAgent(agent), 2);
+                snippet += "\t}\n";
+                snippet += "}\n";
+            }
+        }
+
+        return snippet;
     }
 
     public String getArchiveArtifactsSnippet(ArrayList<String> paths){
@@ -120,7 +121,7 @@ public class PipelineSnippetGenerator {
         StringBuilder snippet = new StringBuilder();
 
         for(String p: paths)
-            snippet.append("junit '").append(p).append("'\n");
+            snippet.append("junit testResults: '").append(p).append(", allowEmptyResults: true").append("'\n");
 
         return snippet.toString();
     }
@@ -129,48 +130,64 @@ public class PipelineSnippetGenerator {
             Stage stage,
             ArrayList<String> buildResultPaths,
             ArrayList<String> testResultPaths,
-            ArrayList<String> archiveArtifacts
+            ArrayList<String> archiveArtifacts,
+            GitConfig gitConfig,
+            String findbugs
     ){
         String snippet = "stage('" + stage.getName() + "') {\n";
 
         snippet += "\tsteps {\n";
-        snippet += "\t\t" + addTabs(shellScritp(stage.getScripts()), 2);
+        snippet += "\t\t" + addTabs(shellScript(stage.getScripts()), 2);
         snippet += "\t}\n";
 
         if(stage.getFailure() != null
                 || stage.getSuccess() != null
                 || stage.getAlways() != null
-                || (stage.getName().equals("Build") && (archiveArtifacts != null || buildResultPaths != null))
-                || stage.getName().equals("Tests") && testResultPaths != null) {
+                || (stage.getName().equals("Build") &&
+                        (archiveArtifacts != null || buildResultPaths != null || findbugs != null))
+                || stage.getName().equals("Tests") && (testResultPaths != null || gitConfig.getGitUrl() != null)) {
             snippet += "\tpost {\n";
 
             if (stage.getSuccess() != null
-                    || (stage.getName().equals("Build") && (archiveArtifacts != null || buildResultPaths != null))
-                    || stage.getName().equals("Tests") && testResultPaths != null) {
+                    || (stage.getName().equals("Build"))
+                    || stage.getName().equals("Tests") && (testResultPaths != null)// || gitConfig.getGitUrl() != null)
+                    )
+            {
                 snippet += "\t\tsuccess {\n";
                 if (stage.getName().equals("Build")) {
+                    snippet += "\t\t\t" + addTabs("archiveArtifacts artifacts: '**/target/*.jar'\n", 3);
                     if(archiveArtifacts != null)
                         snippet += "\t\t\t" + addTabs(getArchiveArtifactsSnippet(archiveArtifacts), 3);
 
                     if(buildResultPaths != null)
                         snippet += "\t\t\t" + addTabs(getPublishReportSnippet(buildResultPaths), 3);
                 }
-                if (stage.getName().equals("Tests") && testResultPaths != null) {
-                    snippet += "\t\t\t" + addTabs(getPublishReportSnippet(testResultPaths), 3);
+                if (stage.getName().equals("Tests")) {
+                    if(testResultPaths != null)
+                        snippet += "\t\t\t" + addTabs(getPublishReportSnippet(testResultPaths), 3);
+//                    if(gitConfig.getGitUrl() != null)
+//                        snippet += "\t\t\t" + addTabs("gitPush " +
+//                                "credentialId: \"" + gitConfig.getCredentialsId() + "\"," +
+//                                "url: \"" + gitConfig.getGitUrl() + "\"," +
+//                                "branch: \"" + gitConfig.getGitBranch() + "\"" +
+//                                "\n", 3);
                 }
                 if(stage.getSuccess() != null)
-                    snippet += "\t\t\t" + addTabs(shellScritp(stage.getSuccess()), 3);
+                    snippet += "\t\t\t" + addTabs(shellScript(stage.getSuccess()), 3);
                 snippet += "\t\t}\n";
             }
-            if (stage.getAlways() != null) {
+            if (stage.getAlways() != null || (findbugs != null && stage.getName().equals("Tests"))) {
                 snippet += "\t\talways {\n";
+                if(findbugs != null && stage.getName().equals("Tests"))
+                    snippet += "\t\t\t" + addTabs("findbugs pattern: '" + findbugs + "'\n", 3);
+
                 if(stage.getAlways() != null)
-                    snippet += "\t\t\t" + addTabs(shellScritp(stage.getAlways()), 3);
+                    snippet += "\t\t\t" + addTabs(shellScript(stage.getAlways()), 3);
                 snippet += "\t\t}\n";
             }
             if (stage.getFailure() != null) {
                 snippet += "\t\tfailure {\n";
-                snippet += "\t\t\t" + addTabs(shellScritp(stage.getFailure()), 3);
+                snippet += "\t\t\t" + addTabs(shellScript(stage.getFailure()), 3);
                 snippet += "\t\t}\n";
             }
 
